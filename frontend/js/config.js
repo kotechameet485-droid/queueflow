@@ -24,7 +24,7 @@
     // CONFIGURE YOUR PRODUCTION RENDER BACKEND URL HERE:
     // (Replace with your actual Render service URL, e.g., 'https://queueflow-backend.onrender.com')
     // ------------------------------------------------------------------------
-    var PRODUCTION_BACKEND_URL = 'https://YOUR-RENDER-BACKEND.onrender.com';
+    var PRODUCTION_BACKEND_URL = 'https://queueflow-2-yumx.onrender.com';
 
     /**
      * Normalizes any base URL to ensure clean formatting with an '/api' suffix
