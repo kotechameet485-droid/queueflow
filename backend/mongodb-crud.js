@@ -13,7 +13,8 @@ async function runMongoDBCRUD() {
         console.log('   QueueFlow — MongoDB CRUD Operations');
         console.log('============================================================\n');
 
-        console.log(`[1. Connection] Connecting to MongoDB at: ${uri} ...`);
+        const safeUri = uri.includes('@') ? uri.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@') : uri;
+        console.log(`[1. Connection] Connecting to MongoDB at: ${safeUri} ...`);
         await client.connect();
         console.log('✔ Successfully connected to MongoDB server.');
 

@@ -125,12 +125,12 @@ Traditional physical queuing systems suffer from significant inefficiencies:
 QueueFlow/
 ├── backend/
 │   ├── node_modules/              # Installed Node.js dependencies
-│   ├── .env.example               # Environment variable template with placeholders
+│   ├── .env.example               # Environment variable template with safe placeholders
 │   ├── app.js                     # Practical 8: MySQL CRUD & DDL Demonstration
-│   ├── mongodb-api.js             # QueueFlow Web API (Express + MongoDB)
+│   ├── mongodb-api.js             # QueueFlow Web API (Express + MongoDB Driver)
 │   ├── mongodb-crud.js            # Practical 10: Standalone MongoDB CRUD Script
 │   ├── PR9.js                     # Practical 9: Role-Based Authentication & Access Control
-│   ├── package.json               # Backend npm metadata, scripts, and dependencies
+│   ├── package.json               # Backend npm metadata, scripts ("api", "build", "start"), engines
 │   └── package-lock.json          # Dependency lockfile
 ├── frontend/
 │   ├── assets/
@@ -140,12 +140,13 @@ QueueFlow/
 │   │   └── style.css              # Custom layout, card styles, and animations
 │   ├── js/
 │   │   ├── app.js                 # Authentication UI helpers and greeting state
+│   │   ├── config.js              # Centralized API Base URL configuration (Vercel -> Render)
 │   │   ├── practical4.js          # Geolocation API, token booking, and deletion
 │   │   └── practical7.js          # Vue 2 directives, drag-and-drop, and status sync
 │   ├── dashboard.html             # Main customer queue monitoring dashboard
 │   ├── index.html                 # Public landing page
 │   └── login.html                 # Customer login portal
-├── .gitignore                     # Git exclusion rules for secrets and node_modules
+├── .gitignore                     # Git exclusion rules for secrets (.env) and node_modules
 └── README.md                      # Comprehensive project documentation
 ```
 
@@ -155,43 +156,48 @@ QueueFlow/
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Browser (Frontend)"]
-        UI["HTML5 / Tailwind / Bootstrap"]
-        VueApp["Vue.js 2 Instance (Current Queue)"]
-        Geo["HTML5 Geolocation + Leaflet Map"]
-        Cache["Local Storage (Offline Fallback)"]
+    subgraph Vercel ["Frontend Hosting (Vercel)"]
+        UI["HTML5 / CSS / Dashboard UI"]
+        Config["frontend/js/config.js\n(Target: Render Backend URL)"]
+        VueApp["Vue.js 2 Instance (practical7.js)"]
+        Geo["HTML5 Geolocation + Leaflet (practical4.js)"]
+        Cache["Browser LocalStorage (Fallback / Offline Cache)"]
     end
 
-    subgraph Backend ["Node.js Express Backend (:3000)"]
-        API["Express Router (/api)"]
-        StaticServer["Express Static Middleware (../frontend)"]
-        HealthEndpoint["/api/health"]
-        TokenRoutes["/api/tokens (CRUD + Reorder)"]
+    subgraph Render ["Backend Web Service (Render.com)"]
+        Express["Express 5 Server (backend/mongodb-api.js)"]
+        CORS["CORS Middleware\n(Validates CORS_ORIGIN = Vercel Origin)"]
+        HealthEndpoint["GET /api/health"]
+        TokenEndpoints["REST API (/api/tokens)\n[GET, POST, PUT, DELETE, reorder]"]
     end
 
-    subgraph Databases ["Database Engines"]
-        MongoLocal[("Local MongoDB\n(:27017)")]
-        MongoAtlas[("MongoDB Atlas\n(Cloud Cluster)")]
-        MySQLDB[("Local MySQL\n(:3306)")]
+    subgraph DatabaseCloud ["Cloud Production Database"]
+        Atlas[("MongoDB Atlas M0 Cluster\n(queueflow_db.tokens)\nTLS Encrypted (0.0.0.0/0 Whitelisted)")]
     end
 
-    subgraph Standalone ["Standalone Viva Practicals"]
+    subgraph LocalDev ["Local Development Alternative"]
+        LocalUI["http://localhost:3000/dashboard.html"]
+        LocalMongo[("Local MongoDB Server\n127.0.0.1:27017")]
+    end
+
+    subgraph Standalone ["Academic Viva Practicals (Standalone)"]
         P8["Practical 8: app.js (MySQL)"]
-        P9["Practical 9: PR9.js (:3001)"]
-        P10["Practical 10: mongodb-crud.js"]
+        P9["Practical 9: PR9.js (Native HTTP Auth :3001)"]
+        P10["Practical 10: mongodb-crud.js (Standalone NoSQL CRUD)"]
     end
 
-    UI --> StaticServer
-    VueApp <--> API
-    API --> TokenRoutes
-    API --> HealthEndpoint
-    TokenRoutes --> MongoLocal
-    TokenRoutes -.-> MongoAtlas
-    P8 --> MySQLDB
-    P10 --> MongoLocal
-    P10 -.-> MongoAtlas
+    UI --> Config
+    Config --> VueApp
+    Config --> Geo
+    VueApp -- "Cross-Origin HTTPS API Requests" --> CORS
+    Geo -- "Booking & Deletion Requests" --> CORS
+    CORS --> TokenEndpoints
+    CORS --> HealthEndpoint
+    TokenEndpoints -- "MongoClient Driver (process.env.MONGODB_URI)" --> Atlas
     VueApp <--> Cache
-    Geo -.-> UI
+
+    LocalUI -.-> Express
+    Express -.-> LocalMongo
 ```
 
 ---
@@ -362,29 +368,35 @@ cp .env.example .env
 ### Supported Variables
 
 ```env
-# Port on which the QueueFlow Express API will listen (Render sets this automatically)
+# Port on which the QueueFlow Express API will listen (Render sets this automatically via process.env.PORT)
 PORT=3000
 
 # Environment mode (development / production)
 NODE_ENV=development
 
-# MongoDB Connection String (Atlas URI in production; defaults to mongodb://127.0.0.1:27017 in development)
-MONGODB_URI=mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@YOUR_CLUSTER/
+# MongoDB Connection String
+# - In local development: defaults to mongodb://127.0.0.1:27017 if left blank
+# - In cloud production on Render: strictly required Atlas SRV URI
+MONGODB_URI=mongodb+srv://<db_username>:<db_password>@<cluster-address>.mongodb.net/?retryWrites=true&w=majority
 
-# Target database name
+# Target database name (default: queueflow_db)
 DB_NAME=queueflow_db
 
-# Target collection name
+# Target collection name (default: tokens)
 COLLECTION_NAME=tokens
 
-# CORS Allowed Origins (Set to your Vercel URL in production, e.g. https://your-app.vercel.app, or * for all)
-CORS_ORIGIN=*
+# CORS Allowed Origins
+# - In production on Render: set to your deployed Vercel frontend origin WITHOUT a trailing slash
+# - Example: CORS_ORIGIN=https://YOUR-VERCEL-DOMAIN.vercel.app
+# - Multiple origins can be comma-separated: https://app1.vercel.app,https://app2.vercel.app
+CORS_ORIGIN=https://YOUR-VERCEL-DOMAIN.vercel.app
 ```
 
 > [!IMPORTANT]
 > - In development (`NODE_ENV !== 'production'`), if `MONGODB_URI` is not set, QueueFlow safely falls back to local `mongodb://127.0.0.1:27017`.
 > - In production (`NODE_ENV === 'production'`), `MONGODB_URI` is strictly required. The backend will halt immediately with an explanatory error if it is missing, preventing silent connection attempts to non-existent local databases.
-> - The `.env` file is excluded from Git via `.gitignore`. Never commit database passwords or private Atlas URIs to version control.
+> - `CORS_ORIGIN` must match the browser's origin header exactly (e.g. `https://my-app.vercel.app` with no trailing slash `/`). A trailing slash will cause the browser CORS preflight check to fail.
+> - The `.env` file is excluded from Git via `.gitignore`. Never commit real database passwords or private Atlas URIs to version control. If a credential was ever committed previously, rotate it immediately in the Atlas security dashboard.
 
 ---
 
@@ -579,97 +591,175 @@ Base URL (Local): `http://localhost:3000/api`
 
 ## 21. Deployment Instructions
 
-### Architecture Choice
+### Deployment Architecture
+
+QueueFlow uses a decoupled multi-cloud architecture:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                 RECOMMENDED DEPLOYMENT                      │
+│                 PRODUCTION ARCHITECTURE                     │
 │                                                             │
-│   Unified Web Service on Render / Railway                   │
-│   ├── Backend Node.js / Express API                         │
-│   └── Frontend Statically Served via express.static()       │
+│   Frontend (Static / SPA Hosting)                           │
+│   └── Deployed on Vercel: https://YOUR-VERCEL-DOMAIN        │
+│       └── Configured via frontend/js/config.js              │
 │                           │                                 │
-│                           ▼                                 │
-│               MongoDB Atlas (Free M0 Cluster)               │
+│                           ▼ Cross-Origin HTTPS Requests     │
+│   Backend (Node.js Web Service)                             │
+│   └── Deployed on Render: https://YOUR-RENDER-BACKEND       │
+│       ├── Root Directory: backend                           │
+│       ├── Build Command:  npm install                       │
+│       ├── Start Command:  npm run api                       │
+│       └── Environment:    MONGODB_URI, CORS_ORIGIN, etc.   │
+│                           │                                 │
+│                           ▼ Official MongoDB Node Driver    │
+│   Cloud Database                                            │
+│   └── MongoDB Atlas M0 Free Cluster                         │
+│       ├── Database: queueflow_db, Collection: tokens        │
+│       └── Network Access: 0.0.0.0/0 (Render dynamic IPs)    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Why this is recommended:**
-- Zero cross-origin (CORS) complications.
-- A single public URL for your viva presentation and resume.
-- Automated deployments directly from your GitHub repository.
-
 ---
 
-### Step-by-Step Deployment (Render.com)
+### Step-by-Step Deployment Guide
 
-#### Phase 1: Configure MongoDB Atlas (Free Cloud Database)
-1. Visit [mongodb.com/atlas](https://www.mongodb.com/atlas) and create an account.
-2. Create a free **M0 Shared Cluster**.
-3. Under **Database Access**, create a user (e.g., `queueflow_admin`) with password and Read/Write privileges.
-4. Under **Network Access**, click **Add IP Address** and select **Allow Access from Anywhere** (`0.0.0.0/0`) so cloud hosts can connect.
-5. In your Cluster view, click **Connect** $\rightarrow$ **Drivers** $\rightarrow$ Copy the connection string:
-   ```text
-   mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/queueflow_db?retryWrites=true&w=majority
-   ```
-   *(Replace `<username>` and `<password>` with your database user credentials)*.
+#### Phase 1: MongoDB Atlas Setup (Cloud Database)
 
-#### Phase 2: Deploy to Render
-1. Push your project to a **GitHub repository** (ensure `.env` is NOT committed).
-2. Sign in to [Render.com](https://render.com) and click **New +** $\rightarrow$ **Web Service**.
-3. Connect your GitHub repository.
-4. Set the service settings:
-   - **Name:** `queueflow`
-   - **Environment:** `Node`
-   - **Root Directory:** `backend`
+1. Sign in to [MongoDB Atlas](https://cloud.mongodb.com).
+2. Create or open an **M0 Free Cluster**.
+3. **Configure Database Access:**
+   - Navigate to **Security** $\rightarrow$ **Database Access**.
+   - Create a database user (e.g. `queueflow_user`).
+   - Assign **Read and write to any database** (or specific permissions for `queueflow_db`).
+   - If using special characters in your password (such as `@`, `:`, `/`, `%`, `&`), ensure they are URL-encoded in the connection string.
+4. **Configure Network Access (Crucial for Render):**
+   - Navigate to **Security** $\rightarrow$ **Network Access**.
+   - Click **+ Add IP Address**.
+   - Select **Allow Access from Anywhere** (`0.0.0.0/0`) and click **Confirm**.
+   - *Why this is mandatory:* Render runs web services on dynamic outbound IP addresses. If `0.0.0.0/0` is not whitelisted, Atlas will terminate the TLS handshake immediately with `tlsv1 alert internal error`.
+5. **Obtain your Connection String:**
+   - In your cluster overview, click **Connect** $\rightarrow$ **Drivers** (Node.js).
+   - Copy the SRV connection string:
+     ```text
+     mongodb+srv://<db_username>:<db_password>@<cluster-address>.mongodb.net/?retryWrites=true&w=majority
+     ```
+   - Replace `<db_username>` and `<db_password>` with your database user credentials.
+   - *Security Rule:* Never commit this connection string to GitHub. It will be configured strictly in Render Environment Variables.
+
+#### Phase 2: Render Backend Web Service Setup
+
+1. Sign in to [Render.com](https://render.com) and click **New +** $\rightarrow$ **Web Service**.
+2. Connect your GitHub repository (`queueflow`).
+3. Configure the exact service settings:
+   - **Name:** `queueflow-backend` (or your chosen service name)
+   - **Region:** Choose a region close to your users (e.g., Singapore, Frankfurt, Oregon)
+   - **Branch:** `main`
+   - **Root Directory:** `backend` *(CRITICAL: Tells Render to execute inside the backend folder)*
+   - **Runtime:** `Node`
    - **Build Command:** `npm install`
-   - **Start Command:** `npm start`
-5. Under **Environment Variables**, add:
-   - `MONGODB_URI` = *(your MongoDB Atlas connection string)*
-   - `NODE_ENV` = `production`
-   - `DB_NAME` = `queueflow_db`
-   - `COLLECTION_NAME` = `tokens`
-6. Click **Deploy Web Service**.
-7. Once deployed, open your live URL:
+   - **Start Command:** `npm run api`
+   - **Instance Type:** `Free`
+4. Configure **Environment Variables** in the Render Dashboard:
+   | Key | Value | Notes |
+   | :--- | :--- | :--- |
+   | `MONGODB_URI` | `mongodb+srv://<user>:<password>@<cluster>.mongodb.net/?retryWrites=true&w=majority` | Real Atlas connection string |
+   | `NODE_ENV` | `production` | Enforces production mode and disables localhost fallbacks |
+   | `DB_NAME` | `queueflow_db` | Target database name |
+   | `COLLECTION_NAME` | `tokens` | Target collection name |
+   | `CORS_ORIGIN` | `https://YOUR-VERCEL-DOMAIN.vercel.app` | **NO trailing slash!** Exact Vercel domain |
+5. Click **Create Web Service** (or **Deploy**).
+6. Verify deployment by opening your live Render health check:
    ```text
-   https://your-service-name.onrender.com/dashboard.html
+   https://YOUR-RENDER-BACKEND.onrender.com/api/health
    ```
+   Expected response:
+   ```json
+   {
+     "status": "ok",
+     "database": "queueflow_db",
+     "collection": "tokens",
+     "totalTokens": 0,
+     "message": "QueueFlow MongoDB API is active and connected"
+   }
+   ```
+
+#### Phase 3: Vercel Frontend Setup & API Connection
+
+1. Open `frontend/js/config.js` in your local repository.
+2. Update `PRODUCTION_BACKEND_URL` with your actual Render URL:
+   ```javascript
+   var PRODUCTION_BACKEND_URL = 'https://YOUR-RENDER-BACKEND.onrender.com';
+   ```
+3. Commit and push this change to your GitHub repository:
+   ```bash
+   git add frontend/js/config.js
+   git commit -m "chore: configure production Render API URL for Vercel deployment"
+   git push origin main
+   ```
+4. Sign in to [Vercel](https://vercel.com) and click **Add New** $\rightarrow$ **Project**.
+5. Import your `queueflow` GitHub repository.
+6. Set the **Root Directory** to `frontend` (or leave as root if serving directly).
+7. Deploy the project.
+8. Open your deployed Vercel URL (e.g., `https://YOUR-VERCEL-DOMAIN.vercel.app/dashboard.html`).
+   - Check the **Database Badge** in the dashboard header: it should display **"MongoDB Connected"** with an active pulsing indicator.
 
 ---
 
 ## 22. Security Considerations
 
-- **Credential Sanitization:** Server connection logs automatically mask Atlas credentials (`mongodb+srv://<credentials>@...`) to prevent credential leakage in console streams.
-- **Git Protection:** `.gitignore` actively excludes `.env`, `node_modules/`, and system caches.
-- **CORS Management:** Configurable via `CORS_ORIGIN` in `.env` to restrict browser origins in production.
-- **Unique Constraints:** Unique MongoDB indexing prevents duplicate token injection.
-- **Practical 9 Demarcation:** The header-based authentication in `PR9.js` is designed exclusively for educational viva demonstration. For production consumer authorization, industry-standard JWT (JSON Web Tokens) or session cookies over HTTPS should be implemented.
+- **Zero Hardcoded Secrets:** All database passwords, usernames, and cluster addresses are configured exclusively through environment variables (`MONGODB_URI`).
+- **Log Credential Sanitization:** Server startup and error logging utilities automatically sanitize connection strings, replacing `//username:password@` with `//<credentials>@` before printing to terminal or server logs.
+- **Strict Production Enforcement:** When `NODE_ENV=production`, the server strictly requires `MONGODB_URI` and will refuse to silently fall back to localhost, preventing deceptive offline states.
+- **TLS Handshake Verification:** TLS certificate validation remains strictly enabled in the official MongoDB Node driver without insecure bypass flags.
+- **CORS Protection:** In production, requests from unauthorized origins are rejected with HTTP 403. Wildcard origins (`*`) are disabled in production mode.
+- **Git Protection:** `.gitignore` actively excludes `.env`, `.env.local`, and all `.env.*` variants while preserving the documentation template `.env.example`.
 
 ---
 
 ## 23. Troubleshooting Common Errors
 
+### Error: `npm error Missing script: "build"`
+- **Root Cause:** Render defaults to running `npm run build` for Node web services if the Build Command is left default or misconfigured. In a pure Node/Express backend without a bundling step (like Webpack/Vite), a missing `"build"` script in `package.json` causes npm to exit with code 1.
+- **Fix:**
+  1. In Render Dashboard $\rightarrow$ Settings $\rightarrow$ **Build Command**, set it to `npm install`.
+  2. A fallback `"build": "echo \"No build step required for backend\""` script has been added to `backend/package.json` as a safeguard.
+
+### Error: `tlsv1 alert internal error` or `SSL alert number 80`
+- **Root Cause:** MongoDB Atlas terminates the TLS handshake during connection negotiation before authentication begins. The most frequent causes are:
+  1. **IP Whitelisting Missing:** Render services use dynamic outbound IP addresses. If your incoming Render IP is not in Atlas Network Access, Atlas closes the TLS connection with an internal error alert.
+  2. **Cluster Paused:** Free-tier M0 clusters pause after periods of inactivity.
+  3. **Malformed Cluster Hostname:** The SRV hostname is misspelled or outdated.
+  4. **Unescaped Special Characters:** Password contains characters like `@`, `:`, `/`, or `%` without URL-encoding.
+- **Fix:**
+  1. Open [MongoDB Atlas](https://cloud.mongodb.com) $\rightarrow$ **Network Access** $\rightarrow$ Add IP $\rightarrow$ select **Allow Access from Anywhere** (`0.0.0.0/0`).
+  2. Check your Cluster status in Atlas; click **Resume** if paused.
+  3. Re-copy the SRV URI directly from Atlas $\rightarrow$ Connect $\rightarrow$ Drivers.
+
+### Error: `CORS blocked: Origin "https://..." is not authorized`
+- **Root Cause:** The browser sends an `Origin` header that does not match `CORS_ORIGIN` in the Render environment variables.
+- **Common Mistakes:**
+  - Trailing slash: `CORS_ORIGIN=https://my-app.vercel.app/` *(INCORRECT: contains trailing `/`)*.
+  - Protocol mismatch: `http://` instead of `https://`.
+  - Missing Vercel preview domain: If testing a preview branch, add both domains comma-separated.
+- **Fix:** Set `CORS_ORIGIN=https://my-app.vercel.app` (without trailing slash) in Render Environment Variables.
+
+### Error: Frontend API Calls Return 404 (Sending requests to Vercel)
+- **Root Cause:** Previously, the frontend defaulted to `window.location.origin + '/api'`. On Vercel, this attempted to reach `https://YOUR-VERCEL-DOMAIN.vercel.app/api/tokens`, which does not exist on the static Vercel host.
+- **Fix:** Ensure `frontend/js/config.js` is loaded and `PRODUCTION_BACKEND_URL` is set to your Render backend service URL (`https://YOUR-RENDER-BACKEND.onrender.com`).
+
 ### Error: `ECONNREFUSED 127.0.0.1:27017`
-- **Cause:** Local MongoDB service is stopped.
+- **Root Cause:** Local MongoDB service is stopped during local development.
 - **Fix:** Open PowerShell as Administrator and run:
   ```powershell
   net start MongoDB
   ```
 
 ### Error: `EADDRINUSE: address already in use :::3000`
-- **Cause:** Another process is already running on port 3000.
-- **Fix:** Terminate the occupying process or run Practical 9 on port 3001:
+- **Root Cause:** Another process is already occupying port 3000.
+- **Fix:** Terminate the occupying process or specify a different port:
   ```powershell
   Get-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess | Stop-Process
   ```
-
-### Leaflet Map Tiles Not Loading
-- **Cause:** Missing internet access or Leaflet CSS CDN blocked.
-- **Fix:** Ensure an active internet connection to load OpenStreetMap tiles.
-
-### CORS Errors in Browser Console
-- **Cause:** Frontend loaded from an origin not permitted by backend.
-- **Fix:** Set `CORS_ORIGIN=*` in `backend/.env` or serve frontend directly from `http://localhost:3000/dashboard.html`.
 
 ---
 

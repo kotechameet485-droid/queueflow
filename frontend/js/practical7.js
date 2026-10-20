@@ -1,8 +1,9 @@
 (function () {
     var API_BASE_URL = window.QUEUEFLOW_API_URL || 
-        (window.location.protocol.startsWith('http') && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-            ? (window.location.origin + '/api')
-            : 'http://localhost:3000/api');
+        (window.QUEUEFLOW_CONFIG && window.QUEUEFLOW_CONFIG.API_BASE_URL) ||
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000/api'
+            : 'https://YOUR-RENDER-BACKEND.onrender.com/api');
 
     Vue.directive('uppercase', {
         bind: function (el) {
@@ -79,7 +80,10 @@
             badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> MongoDB Connected';
         } else {
             badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200';
-            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Backend Offline (Local Cache)';
+            var msg = (API_BASE_URL && API_BASE_URL.includes('YOUR-RENDER-BACKEND'))
+                ? 'Backend Offline (Set Render URL in config.js)'
+                : 'Backend Offline (Local Cache)';
+            badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> ' + msg;
         }
     }
 

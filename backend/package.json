@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node mongodb-api.js",
     "api": "node mongodb-api.js",
+    "build": "echo \"No build step required for backend\"",
     "crud": "node mongodb-crud.js",
     "pr9": "node PR9.js",
     "mysql": "node app.js",

@@ -1,9 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     const API_BASE_URL = window.QUEUEFLOW_API_URL || 
-        (window.location.protocol.startsWith('http') && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-            ? `${window.location.origin}/api`
-            : 'http://localhost:3000/api');
+        (window.QUEUEFLOW_CONFIG && window.QUEUEFLOW_CONFIG.API_BASE_URL) ||
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000/api'
+            : 'https://YOUR-RENDER-BACKEND.onrender.com/api');
 
     const getLocationBtn = document.getElementById('getLocationBtn');
     const latitudeSpan = document.getElementById('latitude');
