@@ -6,7 +6,15 @@ const { MongoClient } = require('mongodb');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017';
+const uri = process.env.MONGODB_URI || 
+    (process.env.NODE_ENV !== 'production' ? 'mongodb://127.0.0.1:27017' : undefined);
+
+if (!uri) {
+    console.error('[QueueFlow MongoDB API] CRITICAL CONFIG ERROR: MONGODB_URI environment variable is required in production.');
+    console.error('Please configure MONGODB_URI in your Render environment variables with your MongoDB Atlas connection string.');
+    throw new Error('MONGODB_URI environment variable is required in production');
+}
+
 const client = new MongoClient(uri);
 const dbName = process.env.DB_NAME || 'queueflow_db';
 const collectionName = process.env.COLLECTION_NAME || 'tokens';
@@ -39,7 +47,8 @@ async function connectDB() {
             console.warn('[QueueFlow MongoDB API] Index notice:', idxErr.message);
         }
     } catch (err) {
-        console.error('[QueueFlow MongoDB API] CRITICAL: Failed to connect to MongoDB server:', err.message);
+        const safeErrMsg = err.message ? err.message.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@') : 'Unknown connection error';
+        console.error('[QueueFlow MongoDB API] CRITICAL: Failed to connect to MongoDB server:', safeErrMsg);
         console.error('Verify that local MongoDB service is running (e.g., "net start MongoDB") or check your MONGODB_URI environment variable for MongoDB Atlas.');
         process.exit(1);
     }

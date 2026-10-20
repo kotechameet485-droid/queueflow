@@ -362,14 +362,14 @@ cp .env.example .env
 ### Supported Variables
 
 ```env
-# Port on which the QueueFlow Express API will listen
+# Port on which the QueueFlow Express API will listen (Render sets this automatically)
 PORT=3000
 
 # Environment mode (development / production)
 NODE_ENV=development
 
-# MongoDB Connection String (Local or Cloud Atlas)
-MONGODB_URI=mongodb://127.0.0.1:27017
+# MongoDB Connection String (Atlas URI in production; defaults to mongodb://127.0.0.1:27017 in development)
+MONGODB_URI=mongodb+srv://YOUR_USERNAME:YOUR_PASSWORD@YOUR_CLUSTER/
 
 # Target database name
 DB_NAME=queueflow_db
@@ -377,12 +377,14 @@ DB_NAME=queueflow_db
 # Target collection name
 COLLECTION_NAME=tokens
 
-# CORS Allowed Origins (Comma-separated for multiple origins, or * for all)
+# CORS Allowed Origins (Set to your Vercel URL in production, e.g. https://your-app.vercel.app, or * for all)
 CORS_ORIGIN=*
 ```
 
 > [!IMPORTANT]
-> The `.env` file is excluded from Git via `.gitignore`. Never commit database passwords or private Atlas URIs to version control.
+> - In development (`NODE_ENV !== 'production'`), if `MONGODB_URI` is not set, QueueFlow safely falls back to local `mongodb://127.0.0.1:27017`.
+> - In production (`NODE_ENV === 'production'`), `MONGODB_URI` is strictly required. The backend will halt immediately with an explanatory error if it is missing, preventing silent connection attempts to non-existent local databases.
+> - The `.env` file is excluded from Git via `.gitignore`. Never commit database passwords or private Atlas URIs to version control.
 
 ---
 
