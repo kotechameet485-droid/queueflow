@@ -15,7 +15,9 @@ if (!uri) {
     throw new Error('MONGODB_URI environment variable is required in production');
 }
 
-const client = new MongoClient(uri);
+const client = new MongoClient(uri, {
+    serverSelectionTimeoutMS: 10000
+});
 const dbName = process.env.DB_NAME || 'queueflow_db';
 const collectionName = process.env.COLLECTION_NAME || 'tokens';
 
@@ -47,9 +49,38 @@ async function connectDB() {
             console.warn('[QueueFlow MongoDB API] Index notice:', idxErr.message);
         }
     } catch (err) {
-        const safeErrMsg = err.message ? err.message.replace(/\/\/[^:]+:[^@]+@/, '//<credentials>@') : 'Unknown connection error';
-        console.error('[QueueFlow MongoDB API] CRITICAL: Failed to connect to MongoDB server:', safeErrMsg);
-        console.error('Verify that local MongoDB service is running (e.g., "net start MongoDB") or check your MONGODB_URI environment variable for MongoDB Atlas.');
+        const fullErrStr = `${err.message || ''} ${err.stack || ''} ${JSON.stringify(err)}`;
+        const safeErrMsg = (err.message || 'Unknown connection error').replace(/\/\/[^:]+:[^@]+@/g, '//<credentials>@');
+
+        console.error('\n============================================================');
+        console.error('[QueueFlow MongoDB API] CRITICAL: MongoDB Connection Failed');
+        console.error('============================================================');
+        console.error('Error Details:', safeErrMsg);
+
+        if (fullErrStr.includes('tlsv1 alert internal error') || fullErrStr.includes('SSL alert number 80') || fullErrStr.includes('ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR')) {
+            console.error('\n[DIAGNOSTIC: TLS HANDSHAKE REJECTED BY MONGODB ATLAS]');
+            console.error('Root Cause: MongoDB Atlas terminated the TLS handshake because the incoming IP address is not whitelisted in Network Access.');
+            console.error('\nHow to fix in MongoDB Atlas:');
+            console.error('  1. Go to https://cloud.mongodb.com and log in.');
+            console.error('  2. In the left sidebar under "Security", click "Network Access".');
+            console.error('  3. Click "+ Add IP Address".');
+            console.error('  4. Click "Allow Access From Anywhere" (sets 0.0.0.0/0) and click Confirm.');
+            console.error('  5. Wait ~1-2 minutes for the rule to apply, then redeploy/restart on Render.');
+        } else if (fullErrStr.includes('Authentication failed') || fullErrStr.includes('auth failed') || err.code === 8000) {
+            console.error('\n[DIAGNOSTIC: AUTHENTICATION FAILED]');
+            console.error('Root Cause: Invalid database username or password in MONGODB_URI.');
+            console.error('How to fix:');
+            console.error('  1. Verify the database user in Atlas under Security -> Database Access.');
+            console.error('  2. If the password has special characters (e.g., @, #, $, %), ensure they are URL-encoded.');
+        } else if (fullErrStr.includes('querySrv') || (fullErrStr.includes('ECONNREFUSED') && fullErrStr.includes('_mongodb._tcp'))) {
+            console.error('\n[DIAGNOSTIC: DNS SRV LOOKUP FAILED]');
+            console.error('Root Cause: Could not resolve cluster SRV record from hostname.');
+            console.error('Verify that your cluster hostname in MONGODB_URI is correct.');
+        } else if (uri && (uri.includes('127.0.0.1') || uri.includes('localhost'))) {
+            console.error('\n[DIAGNOSTIC: LOCAL MONGODB UNREACHABLE]');
+            console.error('Ensure your local MongoDB service is running (e.g. "net start MongoDB" on Windows).');
+        }
+        console.error('============================================================\n');
         process.exit(1);
     }
 }
