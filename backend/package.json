@@ -1,0 +1,25 @@
+{
+  "name": "queueflow-backend",
+  "version": "1.0.0",
+  "description": "QueueFlow Smart Queue Management System - Backend API",
+  "main": "mongodb-api.js",
+  "scripts": {
+    "start": "node mongodb-api.js",
+    "api": "node mongodb-api.js",
+    "crud": "node mongodb-crud.js",
+    "pr9": "node PR9.js",
+    "mysql": "node app.js",
+    "practical8": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "mongodb": "^7.7.0",
+    "mysql": "^2.18.1"
+  }
+}

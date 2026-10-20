@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Dashboard - QueueFlow</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen">
+
+    <nav class="w-full sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm navbar">
+        <div class="w-full max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between nav-container">
+            <a href="dashboard.html" class="flex items-center gap-1.5 text-xl font-bold tracking-tight text-blue-600 no-underline nav-logo">
+                <span>Queue</span><span class="text-slate-900">Flow</span>
+            </a>
+            <div class="flex items-center gap-3">
+                <a href="dashboard.html" class="text-sm font-semibold text-blue-600 no-underline px-3 py-1.5 rounded-lg bg-blue-50 active">Dashboard</a>
+                <button id="logoutBtn" type="button" class="btn btn-outline text-sm font-medium text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 hover:bg-rose-50 px-3.5 py-1.5 rounded-lg transition-all focus:outline-none">
+                    Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 container dashboard-container">
+        
+        <header class="mb-8 dashboard-header">
+            <h1 id="userGreeting" class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Welcome to QueueFlow</h1>
+            <p class="text-sm sm:text-base text-slate-500 mt-1">Manage, monitor, and track your queue status in real time.</p>
+        </header>
+
+        <section class="row g-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 m-0">
+            
+            <div class="col-md-3 w-full">
+                <div class="card h-full bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div class="card-body p-0">
+                        <div class="mb-1">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 metric-title">Current Token</span>
+                        </div>
+                        <div class="text-3xl font-bold text-blue-600 tracking-tight metric-value" id="currentTokenDisplay">--</div>
+                        <button type="button" id="removeTokenBtn" class="btn btn-outline mt-3 px-3 py-1 text-xs font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md transition-colors" style="display: none;">
+                            Remove Token
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 w-full">
+                <div class="card h-full bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div class="card-body p-0">
+                        <div class="mb-1">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 metric-title">Queue Position</span>
+                        </div>
+                        <div class="text-3xl font-bold text-slate-800 tracking-tight metric-value" id="queuePositionDisplay">--</div>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-3">Active queue sequence</div>
+                </div>
+            </div>
+
+            <div class="col-md-3 w-full">
+                <div class="card h-full bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div class="card-body p-0">
+                        <div class="mb-1">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 metric-title">Estimated Wait</span>
+                        </div>
+                        <div class="text-3xl font-bold text-slate-800 tracking-tight metric-value" id="estimatedWaitDisplay">--</div>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-3">Approx. 5 min per token</div>
+                </div>
+            </div>
+
+            <div class="col-md-3 w-full">
+                <div class="card h-full bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+                    <div class="card-body p-0">
+                        <div class="mb-1">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 metric-title">Status</span>
+                        </div>
+                        <div class="text-lg font-semibold mt-2 metric-value" id="tokenStatusDisplay">
+                            <span class="badge badge-info">No Active Token</span>
+                        </div>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-3">Current token state</div>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="dashboard-section bg-white rounded-xl border border-slate-200 p-6 shadow-sm mb-8">
+            <div class="mb-4">
+                <h2 class="text-lg font-bold text-slate-900">Quick Actions</h2>
+                <p class="text-xs sm:text-sm text-slate-500">Book a new token or manage existing queue bookings</p>
+            </div>
+            <div class="actions-grid flex flex-wrap gap-3">
+                <button type="button" id="bookTokenBtn" class="btn btn-primary px-5 py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all focus:ring-2 focus:ring-blue-500/20 focus:outline-none flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    <span>Book Token</span>
+                </button>
+                <button type="button" id="removeTokenActionBtn" class="btn btn-secondary px-4 py-2.5 bg-slate-800 hover:bg-slate-900 active:scale-[0.98] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all focus:ring-2 focus:ring-slate-500/20 focus:outline-none">
+                    Remove Token
+                </button>
+                <button type="button" class="btn btn-secondary placeholder-btn px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg border border-slate-200 transition-all">
+                    Track Queue
+                </button>
+                <button type="button" class="btn btn-secondary placeholder-btn px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg border border-slate-200 transition-all">
+                    Queue History
+                </button>
+            </div>
+            <p id="bookingMessage" class="mt-3 text-sm font-medium min-h-[20px]"></p>
+        </section>
+
+        <section class="dashboard-section bg-white rounded-xl border border-slate-200 p-6 shadow-sm mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Find My Location</h2>
+                    <p class="text-xs sm:text-sm text-slate-500">Detect your live geolocation to find nearby service counters</p>
+                </div>
+                <button type="button" id="getLocationBtn" class="btn btn-primary px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 self-start sm:self-auto">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    <span>Get My Location</span>
+                </button>
+            </div>
+
+            <div id="locationResult" class="flex flex-wrap items-center gap-3 p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-sm mb-4">
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-semibold uppercase text-slate-500">Latitude:</span>
+                    <span id="latitude" class="font-mono font-bold text-slate-800">--</span>
+                </div>
+                <span class="text-slate-300 hidden sm:inline">&bull;</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs font-semibold uppercase text-slate-500">Longitude:</span>
+                    <span id="longitude" class="font-mono font-bold text-slate-800">--</span>
+                </div>
+                <span class="text-slate-300 hidden sm:inline">&bull;</span>
+                <span id="locationStatus" class="text-xs font-medium text-slate-500"></span>
+            </div>
+
+            <div id="locationMap" class="w-full h-72 rounded-xl border border-slate-200 shadow-inner overflow-hidden z-10"></div>
+        </section>
+
+        <section id="currentQueueApp" class="dashboard-section bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Current Queue Status</h2>
+                    <p class="text-xs sm:text-sm text-slate-500">Live active tokens list &bull; Drag and drop rows to reorder queue position</p>
+                </div>
+                <div class="flex items-center gap-2 mt-2 sm:mt-0">
+                    <span id="dbStatusBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        MongoDB Connected
+                    </span>
+                </div>
+            </div>
+
+            <div class="table-responsive overflow-x-auto rounded-lg border border-slate-200">
+                <table class="table table-striped queue-table w-full mb-0">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        <tr>
+                            <th class="py-3 px-4 text-left">Token</th>
+                            <th class="py-3 px-4 text-left">Customer</th>
+                            <th class="py-3 px-4 text-left">Department</th>
+                            <th class="py-3 px-4 text-left">Status</th>
+                            <th class="py-3 px-4 text-left">Joined</th>
+                            <th class="py-3 px-4 text-left">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queueTableBody" class="divide-y divide-slate-200 text-sm">
+                        <tr v-for="(item, index) in queueTokens" 
+                            :key="item.token"
+                            draggable="true"
+                            @dragstart="handleDragStart(index, $event)"
+                            @dragover.prevent="handleDragOver(index, $event)"
+                            @drop="handleDrop(index, $event)"
+                            @dragend="handleDragEnd($event)"
+                            class="transition-colors hover:bg-slate-50/80 cursor-grab active:cursor-grabbing">
+                            <td class="py-3 px-4 font-bold text-slate-900"><strong>{{ item.token }}</strong></td>
+                            <td class="py-3 px-4 font-medium text-slate-700">
+                                <span v-uppercase="item" class="cursor-pointer select-none hover:text-blue-600 transition-colors" title="Click to transform to uppercase">
+                                    {{ item.customer }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-slate-600">{{ item.department }}</td>
+                            <td class="py-3 px-4">
+                                <span @click="updateStatus(item)" 
+                                    :class="item.status === 'Completed' ? 'badge badge-success' : (item.status === 'Serving' ? 'badge badge-info' : 'badge badge-warning')"
+                                    class="cursor-pointer select-none hover:opacity-80 transition-opacity"
+                                    title="Click to change status: Waiting -> Serving -> Completed">
+                                    {{ item.status }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-slate-500 whitespace-nowrap">
+                                <span v-format-date="item.joinedAt"></span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <button type="button" 
+                                    @click="removeToken(item.token)"
+                                    class="btn btn-outline py-1 px-2.5 text-xs font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded transition-colors">
+                                    Remove
+                                </button>
+                            </td>
+                        </tr>
+                        <tr v-if="queueTokens.length === 0">
+                            <td colspan="6" class="py-8 text-center text-slate-400">
+                                No active tokens in queue.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <script src="js/app.js"></script>
+    <script src="js/practical7.js"></script>
+    <script src="js/practical4.js"></script>
+</body>
+</html>
